@@ -1,5 +1,8 @@
 package com.amac.ugaras.services;
 
+import com.amac.ugaras.exceptions.ResourceNotFoundException;
+import com.amac.ugaras.mappers.ContractMapper;
+import com.amac.ugaras.models.dtos.contract.ContractResponseDto;
 import com.amac.ugaras.models.entities.*;
 import com.amac.ugaras.models.dtos.contract.ContractRequestDto;
 import com.amac.ugaras.models.enums.*;
@@ -14,6 +17,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -23,53 +27,49 @@ public class ContractService {
     private final ProductRepository productRepository;
     private final BuyerRepository buyerRepository;
     private final MessageSource messageSource;
+    private final ContractMapper contractMapper;
 
     private static final RoundingMode ROUNDING = RoundingMode.HALF_UP;
 
     @Transactional
-    public Contract createContract(ContractRequestDto request) {
-        // 1. Valideer entiteiten
+    public ContractResponseDto createContract(ContractRequestDto request) {
+        // 1. Validate entities
         Product product = productRepository.findById(request.productId())
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         getMessage("exception.product.not.found", request.productId())
                 ));
 
         Buyer buyer = buyerRepository.findById(request.buyerId())
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         getMessage("exception.buyer.not.found", request.buyerId())
                 ));
 
-        // 2. Berekeningen (Cost-Plus)
+        // 2. Cost-Plus Calculations
         BigDecimal costPrice = product.getPrice();
         BigDecimal downPayment = request.downPaymentAmount();
         BigDecimal marginPercent = request.profitMarginPercentage();
 
-        // Validatie: Aanbetaling < Kostprijs
+        // Validation: Down payment must be strictly less than cost price
         if (downPayment.compareTo(costPrice) >= 0) {
             throw new IllegalArgumentException(
                     getMessage("exception.downpayment.too.high", downPayment, costPrice)
             );
         }
 
-        // Formule: Gefinancierd bedrag
         BigDecimal financedAmount = costPrice.subtract(downPayment);
 
-        // Formule: Winstbedrag
         BigDecimal profitAmount = financedAmount
                 .multiply(marginPercent)
                 .divide(BigDecimal.valueOf(100), 4, ROUNDING);
 
-        // Formule: Totale Verkoopprijs
         BigDecimal totalSalesPrice = costPrice.add(profitAmount);
-
-        // Formule: Totaal terug te betalen
         BigDecimal totalRepaymentAmount = financedAmount.add(profitAmount);
 
-        // Afronden voor opslag
+        // Round for storage
         totalSalesPrice = totalSalesPrice.setScale(2, ROUNDING);
         totalRepaymentAmount = totalRepaymentAmount.setScale(2, ROUNDING);
 
-        // 3. Bouw Contract
+        // 3. Build Contract
         Contract contract = Contract.builder()
                 .buyer(buyer)
                 .product(product)
@@ -83,11 +83,23 @@ public class ContractService {
                 .endDate(request.startDate().plusMonths(request.numberOfInstallments()))
                 .build();
 
-        // 4. Genereer Termijnen
+        // 4. Generate Installments
         List<Installment> installments = generateInstallments(contract, totalRepaymentAmount, request.numberOfInstallments());
         contract.setInstallments(installments);
 
-        return contractRepository.save(contract);
+        // 5. Save and return as DTO
+        Contract savedContract = contractRepository.save(contract);
+        return contractMapper.toDto(savedContract);
+    }
+
+    @Transactional(readOnly = true)
+    public ContractResponseDto getContractById(UUID id) {
+        Contract contract = contractRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        getMessage("exception.contract.not.found", id)
+                ));
+
+        return contractMapper.toDto(contract);
     }
 
     private List<Installment> generateInstallments(Contract contract, BigDecimal totalToRepay, int months) {
@@ -101,7 +113,7 @@ public class ContractService {
             BigDecimal amountDue;
 
             if (i == months) {
-                // Laatste termijn pakt het restant
+                // Last installment captures the remainder to handle rounding issues
                 amountDue = totalToRepay.subtract(currentTotal);
             } else {
                 amountDue = baseMonthlyAmount;
@@ -121,6 +133,7 @@ public class ContractService {
             list.add(installment);
         }
 
+        // Safety check to ensure math aligns perfectly
         if (currentTotal.compareTo(totalToRepay) != 0) {
             throw new IllegalStateException(
                     getMessage("exception.calculation.error", currentTotal, totalToRepay)

@@ -1,5 +1,10 @@
 package com.amac.ugaras.services;
 
+import com.amac.ugaras.exceptions.ResourceNotFoundException;
+import com.amac.ugaras.mappers.ContractMapper;
+import com.amac.ugaras.mappers.InstallmentMapper;
+import com.amac.ugaras.models.dtos.contract.ContractResponseDto;
+import com.amac.ugaras.models.dtos.installment.InstallmentResponseDto;
 import com.amac.ugaras.models.entities.Buyer;
 import com.amac.ugaras.models.entities.Contract;
 import com.amac.ugaras.models.entities.Product;
@@ -12,7 +17,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,6 +24,7 @@ import org.springframework.context.MessageSource;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,9 +40,12 @@ class ContractServiceTest {
     @Mock private ProductRepository productRepository;
     @Mock private BuyerRepository buyerRepository;
     @Mock private MessageSource messageSource;
+    @Mock private ContractMapper contractMapper;
 
     @InjectMocks
     private ContractService contractService;
+
+    private final InstallmentMapper installmentMapper = new InstallmentMapper();
 
     private final Faker faker = new Faker();
     private Product product;
@@ -76,9 +84,19 @@ class ContractServiceTest {
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
         when(buyerRepository.findById(buyer.getId())).thenReturn(Optional.of(buyer));
         when(contractRepository.save(any(Contract.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(contractMapper.toDto(any(Contract.class))).thenAnswer(inv -> {
+            Contract c = inv.getArgument(0);
+            List<InstallmentResponseDto> instDtos = c.getInstallments().stream()
+                    .map(installmentMapper::toDto)
+                    .toList();
+            return new ContractResponseDto(
+                    c.getId(), c.getBuyer().getDisplayName(), c.getProduct().getName(),
+                    c.getTotalSalesPrice(), c.getDownPaymentAmount(), c.getProfitMarginPercentage(),
+                    c.getStatus(), c.getStartDate(), c.getEndDate(), instDtos);
+        });
 
         // Act
-        Contract result = contractService.createContract(request);
+        ContractResponseDto result = contractService.createContract(request);
 
         // Assert - Calculation check:
         // Financed = 1000 - 200 = 800
@@ -86,13 +104,11 @@ class ContractServiceTest {
         // Total Sales Price = 1000 + 80 = 1080
         // Total Repayment = 800 + 80 = 880
 
-        assertThat(result.getCostPrice()).isEqualByComparingTo("1000.00");
-        assertThat(result.getTotalSalesPrice()).isEqualByComparingTo("1080.00");
-        assertThat(result.getTotalRepaymentAmount()).isEqualByComparingTo("880.00");
+        assertThat(result.totalSalesPrice()).isEqualByComparingTo("1080.00");
 
         // Check Installments (880 / 10 = 88 per month)
-        assertThat(result.getInstallments()).hasSize(10);
-        assertThat(result.getInstallments().getFirst().getAmountDue()).isEqualByComparingTo("88.00");
+        assertThat(result.installments()).hasSize(10);
+        assertThat(result.installments().getFirst().amountDue()).isEqualByComparingTo("88.00");
 
         verify(contractRepository).save(any(Contract.class));
     }
@@ -115,24 +131,34 @@ class ContractServiceTest {
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
         when(buyerRepository.findById(buyer.getId())).thenReturn(Optional.of(buyer));
         when(contractRepository.save(any(Contract.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(contractMapper.toDto(any(Contract.class))).thenAnswer(inv -> {
+            Contract c = inv.getArgument(0);
+            List<InstallmentResponseDto> instDtos = c.getInstallments().stream()
+                    .map(installmentMapper::toDto)
+                    .toList();
+            return new ContractResponseDto(
+                    c.getId(), c.getBuyer().getDisplayName(), c.getProduct().getName(),
+                    c.getTotalSalesPrice(), c.getDownPaymentAmount(), c.getProfitMarginPercentage(),
+                    c.getStatus(), c.getStartDate(), c.getEndDate(), instDtos);
+        });
 
         // Act
-        Contract result = contractService.createContract(request);
+        ContractResponseDto result = contractService.createContract(request);
 
         // Assert
-        var installments = result.getInstallments();
+        var installments = result.installments();
         assertThat(installments).hasSize(3);
 
         // Installment 1 & 2
-        assertThat(installments.get(0).getAmountDue()).isEqualByComparingTo("33.33");
-        assertThat(installments.get(1).getAmountDue()).isEqualByComparingTo("33.33");
+        assertThat(installments.get(0).amountDue()).isEqualByComparingTo("33.33");
+        assertThat(installments.get(1).amountDue()).isEqualByComparingTo("33.33");
 
         // Installment 3 (Must contain the remainder)
-        assertThat(installments.get(2).getAmountDue()).isEqualByComparingTo("33.34");
+        assertThat(installments.get(2).amountDue()).isEqualByComparingTo("33.34");
 
         // Total must be exactly 100
         BigDecimal sum = installments.stream()
-                .map(i -> i.getAmountDue())
+                .map(InstallmentResponseDto::amountDue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         assertThat(sum).isEqualByComparingTo("100.00");
     }
@@ -158,5 +184,19 @@ class ContractServiceTest {
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(contractRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("getContractById throws ResourceNotFoundException when contract not found")
+    void getContractByIdThrowsWhenNotFound() {
+        UUID id = UUID.randomUUID();
+        when(contractRepository.findById(id)).thenReturn(Optional.empty());
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("Contract not found");
+
+        assertThatThrownBy(() -> contractService.getContractById(id))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Contract not found");
+
+        verify(contractMapper, never()).toDto(any());
     }
 }

@@ -35,4 +35,13 @@ public class Buyer extends BaseEntity{
 
     @OneToMany(mappedBy = "buyer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Guarantor> guarantors = new ArrayList<>();
+
+    /**
+     * Returns a display name suitable for UI (e.g. "John Doe"). Null-safe for first/last name.
+     */
+    public String getDisplayName() {
+        String first = firstName != null ? firstName : "";
+        String last = lastName != null ? lastName : "";
+        return (first + " " + last).trim().isEmpty() ? "" : (first + " " + last).trim();
+    }
 }

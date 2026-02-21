@@ -1,9 +1,6 @@
 package com.amac.ugaras.controllers;
 
-import com.amac.ugaras.models.entities.Contract;
-import com.amac.ugaras.models.entities.Installment;
 import com.amac.ugaras.models.dtos.contract.*;
-import com.amac.ugaras.models.dtos.installment.InstallmentResponseDto;
 import com.amac.ugaras.services.ContractService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
-import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/contracts")
@@ -22,42 +19,17 @@ public class ContractController {
 
     @PostMapping
     public ResponseEntity<ContractResponseDto> createContract(@Valid @RequestBody ContractRequestDto request) {
-        // Naamswijziging hier doorgevoerd
-        Contract contract = contractService.createContract(request);
-
-        ContractResponseDto response = mapToDto(contract);
+        ContractResponseDto response = contractService.createContract(request);
 
         return ResponseEntity
-                .created(URI.create("/api/v1/contracts/" + contract.getId()))
+                .created(URI.create("/api/v1/contracts/" + response.id()))
                 .body(response);
     }
 
-    private ContractResponseDto mapToDto(Contract contract) {
-        List<InstallmentResponseDto> installmentDtos = contract.getInstallments().stream()
-                .map(this::mapInstallmentToDto)
-                .toList();
+    @GetMapping("/{id}")
+    public ResponseEntity<ContractResponseDto> getContractById(@PathVariable UUID id) {
+        ContractResponseDto response = contractService.getContractById(id);
 
-        return new ContractResponseDto(
-                contract.getId(),
-                contract.getBuyer().getFirstName() + " " + contract.getBuyer().getLastName(),
-                contract.getProduct().getName(),
-                contract.getTotalSalesPrice(),
-                contract.getDownPaymentAmount(),
-                contract.getProfitMarginPercentage(),
-                contract.getStatus(),
-                contract.getStartDate(),
-                contract.getEndDate(),
-                installmentDtos
-        );
-    }
-
-    private InstallmentResponseDto mapInstallmentToDto(Installment installment) {
-        return new InstallmentResponseDto(
-                installment.getId(),
-                installment.getSequenceNumber(),
-                installment.getDueDate(),
-                installment.getAmountDue(),
-                installment.getStatus()
-        );
+        return ResponseEntity.ok(response);
     }
 }
