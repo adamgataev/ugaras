@@ -1,11 +1,9 @@
 package com.amac.ugaras.models.dtos.user;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record UserRequestDto(
-        @NotBlank(message = "{user.phone.required}")
+public record UserUpdateRequestDto(
         @Size(max = 20, message = "{user.phone.size}")
         String phoneNumber,
 
@@ -13,7 +11,8 @@ public record UserRequestDto(
         @Size(max = 255)
         String email,
 
-        @NotBlank(message = "{user.password.required}")
         @Size(min = 8, message = "{user.password.size}")
-        String password
+        String password,
+
+        Boolean enabled
 ) {}

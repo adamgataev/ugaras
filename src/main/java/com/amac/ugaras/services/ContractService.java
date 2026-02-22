@@ -45,7 +45,7 @@ public class ContractService {
                 ));
 
         // 2. Cost-Plus Calculations
-        BigDecimal costPrice = product.getPrice();
+        BigDecimal costPrice = request.costPrice();
         BigDecimal downPayment = request.downPaymentAmount();
         BigDecimal marginPercent = request.profitMarginPercentage();
 
@@ -71,6 +71,7 @@ public class ContractService {
 
         // 3. Build Contract
         Contract contract = Contract.builder()
+                .seller(product.getSeller())
                 .buyer(buyer)
                 .product(product)
                 .costPrice(costPrice)

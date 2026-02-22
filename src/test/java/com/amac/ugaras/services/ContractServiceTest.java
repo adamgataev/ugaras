@@ -8,6 +8,7 @@ import com.amac.ugaras.models.dtos.installment.InstallmentResponseDto;
 import com.amac.ugaras.models.entities.Buyer;
 import com.amac.ugaras.models.entities.Contract;
 import com.amac.ugaras.models.entities.Product;
+import com.amac.ugaras.models.entities.Seller;
 import com.amac.ugaras.models.dtos.contract.ContractRequestDto;
 import com.amac.ugaras.repositories.BuyerRepository;
 import com.amac.ugaras.repositories.ContractRepository;
@@ -50,15 +51,19 @@ class ContractServiceTest {
     private final Faker faker = new Faker();
     private Product product;
     private Buyer buyer;
+    private Seller seller;
 
     @BeforeEach
     void setUp() {
-        // Build base data without ID (using standard @Builder)
+        seller = Seller.builder()
+                .companyName(faker.company().name())
+                .build();
+        seller.setId(UUID.randomUUID());
+
         product = Product.builder()
-                .price(new BigDecimal("1000.00")) // Cost price 1000
+                .seller(seller)
                 .name(faker.commerce().productName())
                 .build();
-        // Set ID manually (Fixing the inheritance issue)
         product.setId(UUID.randomUUID());
 
         buyer = Buyer.builder()
@@ -71,14 +76,15 @@ class ContractServiceTest {
     @Test
     @DisplayName("Should correctly calculate Cost-Plus contract figures")
     void shouldCalculateCostPlusCorrectly() {
-        // Arrange
+        // Arrange: cost 1000, down 200, margin 10% -> financed 800, profit 80, total sales 1080, repayment 880
         var request = new ContractRequestDto(
                 buyer.getId(),
                 product.getId(),
-                new BigDecimal("200.00"), // Down payment
-                new BigDecimal("10.00"),  // 10% Margin
+                new BigDecimal("1000.00"),  // cost price
+                new BigDecimal("200.00"),   // down payment
+                new BigDecimal("10.00"),   // profit margin %
                 LocalDate.now(),
-                10 // 10 Installments
+                10
         );
 
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
@@ -116,17 +122,16 @@ class ContractServiceTest {
     @Test
     @DisplayName("Should handle rounding differences in the last installment")
     void shouldHandleRoundingInLastInstallment() {
-        // Arrange: Repay 100 euro in 3 installments (33.33, 33.33, 33.34)
-        product.setPrice(new BigDecimal("100.00"));
-
         var request = new ContractRequestDto(
                 buyer.getId(),
                 product.getId(),
+                new BigDecimal("100.00"),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 LocalDate.now(),
                 3
         );
+
 
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
         when(buyerRepository.findById(buyer.getId())).thenReturn(Optional.of(buyer));
@@ -171,6 +176,7 @@ class ContractServiceTest {
                 product.getId(),
                 new BigDecimal("1500.00"), // Higher than 1000
                 BigDecimal.TEN,
+                new BigDecimal("3.00"),
                 LocalDate.now(),
                 12
         );

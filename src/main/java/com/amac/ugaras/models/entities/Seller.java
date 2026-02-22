@@ -24,9 +24,12 @@ public class Seller extends BaseEntity{
     @Column(name = "company_name", nullable = false)
     private String companyName;
 
-    @Column(name = "bank_account_iban", nullable = false, length = 34)
+    @Column(name = "bank_account_iban", length = 34)
     private String bankAccountIban;
 
     @OneToMany(mappedBy = "seller", cascade = CascadeType.ALL)
     private List<Product> products;
+
+    @OneToMany(mappedBy = "seller", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SellerCustomer> sellerCustomers = new ArrayList<>();
 }

@@ -20,12 +20,20 @@ import java.util.List;
 @SQLRestriction("deleted_at IS NULL")
 public class Contract extends BaseEntity{
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "seller_id", nullable = false)
+    private Seller seller;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "buyer_id", nullable = false)
     private Buyer buyer;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
+
+    @Builder.Default
+    @Column(nullable = false, length = 3)
+    private String currency = "EUR";
 
     @Column(name = "cost_price", nullable = false, precision = 19, scale = 4)
     private BigDecimal costPrice;

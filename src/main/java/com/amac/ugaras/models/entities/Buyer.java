@@ -27,14 +27,14 @@ public class Buyer extends BaseEntity{
     @Column(name = "last_name", nullable = false, length = 100)
     private String lastName;
 
-    @Column(name = "phone_number", length = 20)
-    private String phoneNumber;
-
     @OneToMany(mappedBy = "buyer")
     private List<Contract> contracts = new ArrayList<>();
 
     @OneToMany(mappedBy = "buyer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Guarantor> guarantors = new ArrayList<>();
+
+    @OneToMany(mappedBy = "buyer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SellerCustomer> sellerCustomers = new ArrayList<>();
 
     /**
      * Returns a display name suitable for UI (e.g. "John Doe"). Null-safe for first/last name.

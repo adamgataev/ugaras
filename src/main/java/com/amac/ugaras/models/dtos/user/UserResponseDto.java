@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record UserResponseDto(
         UUID id,
+        String phoneNumber,
         String email,
         boolean enabled,
         Instant createdAt

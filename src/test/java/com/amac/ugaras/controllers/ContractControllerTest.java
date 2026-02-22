@@ -61,7 +61,13 @@ class ContractControllerTest {
         LocalDate startDate = LocalDate.now();
 
         ContractRequestDto request = new ContractRequestDto(
-                buyerId, productId, new BigDecimal("100.00"), new BigDecimal("10.00"), startDate, 12
+                buyerId,
+                productId,
+                new BigDecimal("100.00"),
+                new BigDecimal("10.00"),
+                new BigDecimal("3.00"),
+                startDate,
+                12
         );
 
         ContractResponseDto responseDto = new ContractResponseDto(
@@ -94,9 +100,13 @@ class ContractControllerTest {
     void createContractValidationFailureDutch() throws Exception {
         // Arrange - Invalid down payment (negative)
         ContractRequestDto invalidRequest = new ContractRequestDto(
-                UUID.randomUUID(), UUID.randomUUID(),
-                new BigDecimal("-100.00"),
-                new BigDecimal("10.00"), LocalDate.now(), 12
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                new BigDecimal("100.00"),
+                new BigDecimal("-10.00"),
+                new BigDecimal("3.00"),
+                LocalDate.now(),
+                12
         );
 
         // Act & Assert
@@ -115,8 +125,11 @@ class ContractControllerTest {
         // Arrange
         ContractRequestDto invalidRequest = new ContractRequestDto(
                 UUID.randomUUID(), UUID.randomUUID(),
-                new BigDecimal("-100.00"),
-                new BigDecimal("10.00"), LocalDate.now(), 12
+                new BigDecimal("100.00"),
+                new BigDecimal("-10.00"),
+                new BigDecimal("3.00"),
+                LocalDate.now(),
+                12
         );
 
         // Act & Assert (No header provided)

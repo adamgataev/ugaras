@@ -15,20 +15,17 @@ import java.math.BigDecimal;
 @Builder
 @SQLRestriction("deleted_at IS NULL")
 public class Product extends BaseEntity{
-    // Meerdere producten horen bij 1 verkoper. Later misschien many to many hier. Voorlopig nog niet nodig.
+    
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "seller_id", nullable = false)
     private Seller seller;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String name;
 
     @Column(columnDefinition = "TEXT") // Zodat het TEXT wordt in PostgreSQL en niet VARCHAR
     private String description;
 
-    @Column(nullable = false, precision = 19, scale = 4)
-    private BigDecimal price;
-
-    @Column(length = 50)
-    private String sku;
+    @Column(name = "image_url", columnDefinition = "TEXT")
+    private String imageURL;
 }

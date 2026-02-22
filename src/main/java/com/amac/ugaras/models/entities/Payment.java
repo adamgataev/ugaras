@@ -1,6 +1,7 @@
 package com.amac.ugaras.models.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Positive;
 import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
 
@@ -17,16 +18,15 @@ import java.time.Instant;
 @Builder
 @SQLRestriction("deleted_at IS NULL")
 public class Payment extends BaseEntity{
-    // Directe link naar contract (voor snelle totalen)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "contract_id", nullable = false)
     private Contract contract;
 
-    // Link naar specifieke termijn (kan null zijn bijv. bij een aanbetaling vooraf)
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "installment_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "installment_id", nullable = false)
     private Installment installment;
 
+    @Positive
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
 

@@ -30,42 +30,61 @@ class UserRepositoryTest {
 
     @Test
     void testFindUserByEmail() {
-        String existingEmail = "peter.pech@hotmail.com";
+        String phone = "+316" + faker.number().digits(8);
+        String email = generateRandomEmail();
+        User user = User.builder()
+                .phoneNumber(phone)
+                .email(email)
+                .passwordHash(faker.internet().password(8, 20))
+                .enabled(true)
+                .build();
+        userRepository.saveAndFlush(user);
 
-        Optional<User> userOptional = userRepository.findByEmail(existingEmail);
-
-        assertThat(userOptional).isPresent();
-        assertThat(userOptional.get().getEmail()).isEqualTo(existingEmail);
-
-        System.out.println("Gevonden User ID: " + userOptional.get().getId());
+        Optional<User> found = userRepository.findByEmail(email);
+        assertThat(found).isPresent();
+        assertThat(found.get().getEmail()).isEqualTo(email);
+        assertThat(found.get().getPhoneNumber()).isEqualTo(phone);
     }
 
     @Test
-    @Rollback(false) // Resultaat in de DB zien (optioneel)
+    void testFindByPhoneNumber() {
+        String phone = "+316" + faker.number().digits(8);
+        String email = generateRandomEmail();
+        User user = User.builder()
+                .phoneNumber(phone)
+                .email(email)
+                .passwordHash(faker.internet().password(8, 20))
+                .enabled(true)
+                .build();
+        userRepository.saveAndFlush(user);
+
+        Optional<User> found = userRepository.findByPhoneNumber(phone);
+        assertThat(found).isPresent();
+        assertThat(found.get().getPhoneNumber()).isEqualTo(phone);
+    }
+
+    @Test
+    @Rollback(false)
     void testApplySoftDelete() {
+        String randomPhone = "+316" + faker.number().digits(8);
         String randomEmail = faker.internet().emailAddress();
         String randomPassword = faker.internet().password(8, 20);
 
-        System.out.println("Testen met fake user: " + randomEmail);
-
         User user = User.builder()
+                .phoneNumber(randomPhone)
                 .email(randomEmail)
                 .passwordHash(randomPassword)
                 .enabled(true)
                 .build();
-        // User aanmaken
-        userRepository.save(user);
+        userRepository.saveAndFlush(user);
 
-        // User zoeken
         Optional<User> foundUser = userRepository.findByEmail(randomEmail);
         assertThat(foundUser).isPresent();
         assertThat(foundUser.get().getEmail()).isEqualTo(randomEmail);
 
-        // User (soft) verwijderen
         user.setDeletedAt(Instant.now());
         userRepository.save(user);
 
-        // Hier mag hij niet gevonden kunnen worden
         Optional<User> deletedUser = userRepository.findByEmail(randomEmail);
         assertThat(deletedUser).isEmpty();
     }

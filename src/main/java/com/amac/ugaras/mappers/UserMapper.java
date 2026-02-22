@@ -7,10 +7,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class UserMapper {
-    // Van Entity naar DTO (Output)
+
     public UserResponseDto toDto(User user) {
         return new UserResponseDto(
                 user.getId(),
+                user.getPhoneNumber(),
                 user.getEmail(),
                 user.isEnabled(),
                 user.getCreatedAt()
@@ -21,8 +22,9 @@ public class UserMapper {
     // We vullen het passwordHash nog niet in, dat doet de Service!
     public User toEntity(UserRequestDto dto) {
         return User.builder()
+                .phoneNumber(dto.phoneNumber())
                 .email(dto.email())
-                // enabled is standaard true door @Builder.Default in de entity
+                .enabled(true)
                 .build();
     }
 }

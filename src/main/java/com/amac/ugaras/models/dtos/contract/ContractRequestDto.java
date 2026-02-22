@@ -12,6 +12,11 @@ public record ContractRequestDto(
         @NotNull(message = "{contract.product.required}")
         UUID productId,
 
+        @NotNull(message = "{contract.costprice.required}")
+        @Digits(integer = 15, fraction = 2, message = "{contract.costprice.digits}")
+        @DecimalMin(value = "0.01", message = "{contract.costprice.min}")
+        BigDecimal costPrice,
+
         @NotNull(message = "{contract.downpayment.required}")
         @Digits(integer = 15, fraction = 2, message = "{contract.downpayment.digits}")
         @DecimalMin(value = "0.00", message = "{contract.downpayment.min}")
